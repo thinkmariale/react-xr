@@ -8,13 +8,16 @@ import { XREventHandler } from './XREvents'
 import { uniq, useIsomorphicLayoutEffect, useCallbackRef } from './utils'
 import { XRContext, XRState } from './context'
 
+import { LocationBased } from "./location/location-based"
+
 interface GlobalSessionState {
   set: SetState<GlobalSessionState>
   get: GetState<GlobalSessionState>
   session: XRSession | null
   referenceSpaceType: XRReferenceSpaceType | null
+  locationBased: LocationBased | null
 }
-const globalSessionStore = create<GlobalSessionState>((set, get) => ({ set, get, session: null, referenceSpaceType: null }))
+const globalSessionStore = create<GlobalSessionState>((set, get) => ({ set, get, session: null, referenceSpaceType: null, locationBased:null }))
 
 export type XRManagerEventType = 'sessionstart' | 'sessionend'
 export interface XRManagerEvent {
@@ -37,6 +40,7 @@ export interface XRProps {
    * @see https://developer.mozilla.org/en-US/docs/Web/API/WebXR_Device_API/Rendering#refresh_rate_and_frame_rate
    */
   frameRate?: number
+  locationBased?:boolean
   /** Type of WebXR reference space to use. Default is `local-floor` */
   referenceSpace?: XRReferenceSpaceType
   /** Called as an XRSession is requested */
@@ -53,6 +57,7 @@ function XRManager({
   foveation = 0,
   frameRate = undefined,
   referenceSpace = 'local-floor',
+  locationBased=true,
   onSessionStart,
   onSessionEnd,
   onVisibilityChange,
@@ -71,6 +76,7 @@ function XRManager({
   const onSessionEndRef = useCallbackRef(onSessionEnd)
   const onVisibilityChangeRef = useCallbackRef(onVisibilityChange)
   const onInputSourcesChangeRef = useCallbackRef(onInputSourcesChange)
+  set(() => ({ locationBased }))
 
   useIsomorphicLayoutEffect(() => {
     const handlers = [0, 1].map((id) => {
@@ -111,6 +117,11 @@ function XRManager({
     gl.xr.setReferenceSpaceType(referenceSpace)
     set(() => ({ referenceSpace }))
     globalSessionState.set({ referenceSpaceType: referenceSpace })
+   
+    const arLocationControl= new LocationBased({name:"hello"});
+    globalSessionStore.setState(() => ({ locationBased: arLocationControl}))
+   
+    set(() => ({ arLocationControl}))
   }, [gl.xr, referenceSpace, set])
 
   useIsomorphicLayoutEffect(() => {
@@ -177,6 +188,7 @@ export function XR(props: XRProps) {
         isPresenting: false,
         isHandTracking: false,
         player: new THREE.Group(),
+        locationBased:true,
         session: null,
         foveation: 0,
         referenceSpace: 'local-floor',
@@ -229,7 +241,28 @@ export function XR(props: XRProps) {
             const interactionIndex = target[eventType].indexOf(handlerRef)
             if (interactionIndex !== -1) target[eventType].splice(interactionIndex, 1)
           }
+        },
+        startLocatonInteraction(player:THREE.Group, scene:THREE.Scene) {
+         
+          if(get().locationBased && get().arLocationControl != null) {
+            console.log("startLocatonInteractionXR")
+            // const arLocationControl = new LocationBased(scene, player);
+            get().arLocationControl?.initLocation(player, scene);
+           // return get().arLocationControl.startGps();
+          //   const start = arLocationControl.startGps();
+          //  // if faield to start bc running, end it and restart it
+          //   if(!start) {
+          //     arLocationControl.stopGps();
+          //     arLocationControl.startGps();
+          //   }
+          //   set(()=>({arLocationControl}));
+        //get().arLocationControl.startGps();
+       
+            return true;
+          }
+          return false;
         }
+
       })),
     []
   )
@@ -255,6 +288,7 @@ export interface XRButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButto
   enterOnly?: boolean
   /** Whether this button should only exit an `XRSession`. Default is `false` */
   exitOnly?: boolean
+  locationBased:boolean
   /** This callback gets fired if XR initialization fails. */
   onError?: (error: Error) => void
   /** React children, can also accept a callback returning an `XRButtonStatus` */
@@ -307,7 +341,7 @@ export const stopSession = async () => {
 }
 
 export const toggleSession = async (
-  sessionMode: XRSessionMode,
+  sessionMode: XRSessionMode,locationBased:boolean,
   { sessionInit, enterOnly, exitOnly }: Pick<XRButtonProps, 'sessionInit' | 'enterOnly' | 'exitOnly'> = {}
 ) => {
   const xrState = globalSessionStore.getState()
@@ -318,8 +352,16 @@ export const toggleSession = async (
 
   // Exit/enter session
   if (xrState.session) {
+    if(locationBased){
+      xrState.locationBased?.stopGps()
+      xrState.set({ locationBased: null })
+    }
     return await stopSession()
   } else {
+    if(locationBased) {
+      console.log("startGps")
+      xrState.locationBased?.startGps();
+    }
     return await startSession(sessionMode, sessionInit)
   }
 }
@@ -345,7 +387,7 @@ const getLabel = (status: XRButtonStatus, mode: XRButtonProps['mode'], reason: X
 }
 
 export const XRButton = React.forwardRef<HTMLButtonElement, XRButtonProps>(function XRButton(
-  { mode, sessionInit, enterOnly = false, exitOnly = false, onClick, onError, children, ...props },
+  { mode, sessionInit, enterOnly = false, exitOnly = false, onClick, onError,locationBased, children, ...props },
   ref
 ) {
   const [status, setStatus] = React.useState<XRButtonStatus>('exited')
@@ -395,14 +437,14 @@ export const XRButton = React.forwardRef<HTMLButtonElement, XRButtonProps>(funct
       onClick?.(event)
 
       try {
-        toggleSession(sessionMode, { sessionInit, enterOnly, exitOnly })
+        toggleSession(sessionMode, locationBased, { sessionInit, enterOnly, exitOnly })
       } catch (e) {
         const onError = onErrorRef.current
         if (onError && e instanceof Error) onError(e)
         else throw e
       }
     },
-    [onClick, sessionMode, sessionInit, enterOnly, exitOnly, onErrorRef]
+    [onClick, sessionMode, sessionInit,locationBased, enterOnly, exitOnly, onErrorRef]
   )
 
   return (

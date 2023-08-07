@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { XRContext, XRState } from '../context'
 import { Group } from 'three'
 import { XRInteractionHandler, XRInteractionType } from '@react-three/xr'
+import { LocationBased } from "../location/location-based"
 
 export const createStoreMock = () =>
   create<XRState>((set, get) => ({
@@ -12,6 +13,7 @@ export const createStoreMock = () =>
 
     controllers: [],
     isPresenting: false,
+    locationBased:false,
     isHandTracking: false,
     player: new Group(),
     session: null,
@@ -24,6 +26,7 @@ export const createStoreMock = () =>
       none: new Map()
     },
     interactions: new Map(),
+    arLocationControl : new LocationBased(),
     hasInteraction(object: THREE.Object3D, eventType: XRInteractionType) {
       return !!get()
         .interactions.get(object)
@@ -66,6 +69,9 @@ export const createStoreMock = () =>
         const interactionIndex = target[eventType].indexOf(handlerRef)
         if (interactionIndex !== -1) target[eventType].splice(interactionIndex, 1)
       }
+    },
+    startLocatonInteraction(camera:THREE.Group, scene:THREE.Scene) {
+      return false;
     }
   }))
 

@@ -1,77 +1,148 @@
-// Inspired by react-three-fiber/examples
-// https://github.com/pmndrs/react-three-fiber/blob/master/example/src/App.tsx
-import React from 'react'
-import { demoDots, demoName, demoPanel, dot, error, loadingContainer, loadingMessage, page } from './styles.css'
-import { Link, Redirect, Route, useRoute } from 'wouter'
+ //@ts-ignore
+ import  { useState, useRef } from 'react'
+ import {
+  ARObj,
+  XR, 
+  ARButton,
+  Controllers,
+  ARLocation,
+  } from '@react-three/xr'
 
-import * as demos from './demos'
-import { useErrorBoundary } from 'use-error-boundary'
+ import {demoPanel,
+   demoImage,
+   codePanel,
+   modalTitle
+  } from './styles.css'
+ import { Canvas } from '@react-three/fiber'
+ import * as THREE from "three";
+ import DebugPanel from './components/ui/DebugPanel';
+ import {ARPrimitive} from './components/ui/ARPrimitive';
+ import BoxButton from './components/ui/BoxButton';
 
-const DEFAULT_COMPONENT_NAME = 'Interactive'
-const visibleComponents = Object.entries(demos).reduce(
-  (acc, [name, item]) => ({ ...acc, [name]: item }),
-  {} as Record<string, { Component: React.LazyExoticComponent<() => JSX.Element> }>
-)
 
-function ErrorBoundary({ children, fallback, name }: any) {
-  const { ErrorBoundary, didCatch, error } = useErrorBoundary()
-  return didCatch ? fallback(error) : <ErrorBoundary key={name}>{children}</ErrorBoundary>
-}
+const distance = true
+const useLocation = true;
 
-function Demo() {
-  const [match, params] = useRoute('/demo/:name')
-  const compName = match && params.name && typeof params.name === 'string' ? params.name : DEFAULT_COMPONENT_NAME
-  const Component = compName in visibleComponents ? visibleComponents[compName].Component : null
+ export function App() {
 
-  if (!Component) {
-    return null
-  }
+  const [showModal, setShowModal] = useState(false);
+  const [modalInfo, setModalInfo] = useState("bc1qfw356j3zznufltwgl9r4dj2hx0ge7t3g73ug3j");
+  
+  const [arObjects, setArObjects] = useState<ARObj[]>(
+    [
+      // tahoe
+    // { 
+    //   arPosition: [39.3477195,-120.110304, 0],
+    //   position:[0,0,0],
+    //   scale:[.01, .01, .01],
+    //   name:"cube",
+    // },
+    // {
+    //   arPosition: [39.3475068,-120.1103905, 0],
+    //   position:[0,0,0],
+    //   scale:[.05, .05, .05],
+    //   name:"far object"
+    // },
+    // {
+    //   arPosition: [39.3475757,-120.1103537, 0],
+    //   position:[2,0,0],
+    //   scale:[10, 10, 10],
+    //   name:"frog object"
+    // },
+    // SF 37.7545947, longitude: -122.4419746
+    {
+      arPosition: [37.7545947, -122.4419746, 0],
+      position:[1,0,0],
+      scale:[1,1,1],
+      name:"far_1"
+    },
+    { 
+      arPosition: [37.7545947+.0001, -122.4419746, 0],
+      position:[1,0,0],
+      scale:[1,1,1],
+      name:"coin"
+    },
+    {
+      arPosition: [37.7545947, -122.4419746-.0001, 0],
+      position:[1.5,0,0],
+      scale:[10,10,10],
+      name:"pepe"
+    }
+    ])
+ 
+    function ShowModal(info:string) {
+      if(showModal) {
+        setShowModal(false);
+        return;
+      }
+      setShowModal(true);
+    //  setModalInfo(info)
+    }
 
-  return (
-    <ErrorBoundary key={compName} fallback={(e: any) => <div className={error}>{e}</div>}>
-      <Component />
-    </ErrorBoundary>
-  )
-}
-
-export const Loading = () => {
-  return (
-    <div className={loadingContainer}>
-      <div className={loadingMessage}>Loading.</div>
-    </div>
-  )
-}
-
-function Dots() {
-  const [match, params] = useRoute('/demo/:name')
-  if (!match) return null
-
-  return (
-    <div className={demoPanel}>
-      <div className={demoDots}>
-        {Object.entries(visibleComponents).map(function mapper([name, _item]) {
-          const background = params.name === name ? 'salmon' : '#fff'
-          return <Link className={dot} key={name} to={`/demo/${name}`} style={{ background }} />
-        })}
-      </div>
-      <div className={demoName}>{params.name}</div>
-    </div>
-  )
-}
-
-export function App() {
-  const dev = new URLSearchParams(location.search).get('dev')
-  return (
+    // const elementRef = useRef() // create the ref
+   return (
     <>
-      <div className={page}>
-        <React.Suspense fallback={<Loading />}>
-          <Route path="/" children={<Redirect to={`/demo/${DEFAULT_COMPONENT_NAME}`} />} />
-          <Route path="/demo/:name">
-            <Demo />
-          </Route>
-        </React.Suspense>
-        {dev === null && <Dots />}
+    {showModal && 
+    <div className={demoPanel} >
+      <div className={modalTitle} >
+        <img className={demoImage} src='./congrats.png'></img>
+        <h3>Congratulations</h3>
       </div>
+      <p style={{color:'#797b85', margin:'auto', fontSize:'10px'}}>
+        YOUR UNLOCK IS BELOW:
+      </p>
+      <div className={codePanel} >
+        <p style={{ fontSize:'10px'}}>
+          {modalInfo}
+          </p> 
+      </div>
+      <img className={demoImage} src='./congrats.png'></img>
+      
+    </div>
+    }
+      <ARButton locationBased={useLocation} />
+      
+      <Canvas
+       camera={{ position: [0, 0, 0], } }>
+        <XR referenceSpace="local" locationBased={useLocation}>
+       
+          <ambientLight />
+          <DebugPanel />
+          
+          <ARLocation arObjects={arObjects} setArObjects={setArObjects} >
+          </ARLocation>
+           {/* <ARPrimitive arObject={arObjects[0]} loadModel={false} distance={distance}>
+            <Button  />
+           </ARPrimitive> */}
+
+            
+            {/* <ARPrimitive 
+             arObject={arObjects[0]}
+             loadModel={true}
+             filePath={"assets/obj.glb"} 
+             distance={distance}
+             /> */}
+           <ARPrimitive 
+             arObject={arObjects[1]}
+             loadModel={true}
+             filePath={"assets/coin.glb"} 
+             distance={distance}
+             ShowModal={ShowModal}
+             />
+            <ARPrimitive 
+             arObject={arObjects[2]}
+             loadModel={true}
+             filePath={"assets/pepe.glb"} 
+             distance={distance}
+             ShowModal={ShowModal}
+             />
+          
+         
+          <BoxButton  position={[0, 0.1, -0.2]}/>
+          <Controllers />
+        </XR>
+      </Canvas>
     </>
-  )
-}
+   )
+ }
+ 
