@@ -524,3 +524,11 @@ export function useController(handedness: XRHandedness) {
 
   return controller
 }
+
+export function useLocation ():(LocationBased | null) {
+  const xrState = globalSessionStore.getState()
+  if( xrState.locationBased){
+    return xrState.locationBased;
+  }
+  return null;
+}
